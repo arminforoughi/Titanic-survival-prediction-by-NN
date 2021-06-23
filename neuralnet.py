@@ -1,6 +1,12 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import FunctionTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+
 #import matplotlib.pyplot as plt
 #import h5py
 
@@ -253,7 +259,7 @@ def compute_cost(AL, Y):
     # Compute loss from aL and y.
     cost = (1./m) * (-np.dot(Y,np.log(AL).T) - np.dot(1-Y, np.log(1.00000001-AL).T))
 
-    cost = np.squeeze(cost)      # To make sure your cost's shape is what we expect (e.g. this turns [[17]] into 17).
+    cost = np.squeeze(cost)
     assert(cost.shape == ())
 
     return cost
@@ -397,11 +403,6 @@ def predict(X, y, parameters):
         else:
             p[0,i] = 0
 
-    #print results
-    #print ("predictions: " + str(p))
-    #print ("true labels: " + str(y))
-    #print("Accuracy: "  + str(np.sum((p == y)/m)))
-
     return p
 def predict_test(X, parameters):
     """
@@ -430,8 +431,8 @@ def predict_test(X, parameters):
         else:
             p[0,i] = 0
 
-
     return p
+
 def print_mislabeled_images(classes, X, y, p):
     """
     Plots images where predictions and truth were different.
@@ -452,7 +453,7 @@ def print_mislabeled_images(classes, X, y, p):
         plt.title("Prediction: " + classes[int(p[0,index])].decode("utf-8") + " \n Class: " + classes[y[0,index]].decode("utf-8"))
 
 
-def L_layer_model(X, Y, layers_dims, learning_rate = 0.0075, num_iterations = 3000, print_cost=False):#lr was 0.009
+def L_layer_model(X, Y, layers_dims, learning_rate = 0.0075, num_iterations = 300, print_cost=False):#lr was 0.009
     """
     Implements a L-layer neural network: [LINEAR->RELU]*(L-1)->LINEAR->SIGMOID.
 
@@ -471,10 +472,8 @@ def L_layer_model(X, Y, layers_dims, learning_rate = 0.0075, num_iterations = 30
     np.random.seed(1)
     costs = []                         # keep track of cost
 
-
-
     parameters = initialize_parameters_deep(layers_dims)
-    ### END CODE HERE ###
+
 
     # Loop (gradient descent)
     for i in range(0, num_iterations):
@@ -483,21 +482,17 @@ def L_layer_model(X, Y, layers_dims, learning_rate = 0.0075, num_iterations = 30
 
         AL, caches = L_model_forward(X, parameters)
 
-
         # Compute cost.
 
         cost = compute_cost(AL, Y)
-
 
         # Backward propagation.
 
         grads = L_model_backward(AL, Y, caches)
 
-
         # Update parameters.
 
         parameters = update_parameters(parameters, grads, learning_rate)
-
 
         # Print the cost every 100 training example
         if print_cost and i % 100 == 0:
@@ -506,11 +501,6 @@ def L_layer_model(X, Y, layers_dims, learning_rate = 0.0075, num_iterations = 30
             costs.append(cost)
 
     # plot the cost
-    '''plt.plot(np.squeeze(costs))
-    plt.ylabel('cost')
-    plt.xlabel('iterations (per hundreds)')
-    plt.title("Learning rate =" + str(learning_rate))
-    plt.show()'''
 
     return parameters
 
@@ -541,7 +531,7 @@ def NN():
     '25 35 40'
     '26 12 8'
     '27, 36, 14'
-    layers_dims = [7, 27, 36, 14, 1]
+    layers_dims = [7, 47, 30, 23, 1]
     parameters = L_layer_model(np.transpose(np.array(train_x)), np.transpose(np.array(train_y)),layers_dims, num_iterations = 4000)
     print('accuracy to the training on NN')
     Y_pred = predict_test(np.transpose(np.array(test_x)), parameters).T
@@ -586,6 +576,94 @@ def set_data():
     train_x = pd.DataFrame(std_scaler.fit_transform(train_x), columns=train_x.columns, index= train_x.index)
     test_x = pd.DataFrame(std_scaler.fit_transform(test_x), columns=test_x.columns, index= test_x.index)#.set_index(np.array(range(892,1310)))
     return train_x, train_y, test_x, test_data
+
+
+from sklearn.base import BaseEstimator, TransformerMixin
+
+
+class titanic_NN(BaseEstimator, TransformerMixin):
+
+    def __init__(self, Layers_dim= [7, 25, 35, 40, 1], num_it = 100):
+        self.layers_dims = Layers_dim
+        self.num_iterations = num_it
+
+    def fit(self, X, y):
+
+        self.parameters = L_layer_model(np.transpose(np.array(X)), np.transpose(y),layers_dims = self.layers_dims, num_iterations = self.num_iterations)
+
+        return self
+
+    def predict(self, X, y=None):
+
+        return predict_test(np.transpose(np.array(X)), self.parameters).T
+
+    def score(self, X, y):
+        return np.abs((self.predict(X) - np.transpose(y))[0]).sum() / len(y)
+def titanic_ColumnTransformer(titanic):
+
+    def gettitle(name):
+        return np.array(name.Name.str.split().str.get(0).apply(helper)).reshape(-1,1)
+
+    def helper(title):
+        if title in ['Mr.', 'Miss.', 'Mrs.', 'Master.', 'Dr.', 'Rev.']:
+            return title
+        if title in ['Ms.', 'Lady.']:
+            return 'Miss.'
+        else:
+            return 'Mr.'
+
+    title = FunctionTransformer(gettitle)
+    getitle = Pipeline(steps=[
+        ('title', title),
+        ('cat', OneHotEncoder())
+    ])
+    ohe = OneHotEncoder(drop='first')
+
+    std = StandardScaler()
+    preproc = ColumnTransformer(
+        transformers=[
+            ('title', getitle, ['Name']),
+            ('sex', ohe, ['Sex']),
+            ('num', std, ['Age', 'SibSp', 'Parch', 'Fare']),
+            ('cat', OneHotEncoder(), ['Pclass'])
+        ])
+    return preproc.fit_transform(titanic)
+
+
+def find_NN_layers():
+    data = pd.read_csv("train.csv")
+    data = data.drop(columns = ['Ticket', 'Cabin', 'Embarked']).set_index('PassengerId')
+    data = data.dropna()
+    y = data['Survived']
+    data = data.drop(columns = ['Survived'])
+    X_train, X_test, y_train, y_test = train_test_split(titanic_ColumnTransformer(data), y)
+    maxa=0
+    maxi=0
+    maxj = 0
+    maxk = 0
+    for i in range(38, 50):
+        for j in range(0, 50):
+            print(i, j)
+            for k in range(0, 50):
+                layers_dims = [9, i,j,k, 1]
+                a = titanic_NN(layers_dims, 100)
+                a.fit(X_train,(np.array(y_train)).reshape(len(y_train),1))
+                score = a.score(X_test,(np.array(y_test)).reshape(len(y_test),1))
+
+                if maxa < score:
+                    X_train, X_test, y_train, y_test = train_test_split(titanic_ColumnTransformer(data), y)
+                    a = titanic_NN(layers_dims, 100)
+                    a.fit(X_train,(np.array(y_train)).reshape(len(y_train),1))
+                    score = a.score(X_test,(np.array(y_test)).reshape(len(y_test),1))
+                    if maxa < score:
+
+                        maxa = score
+                        maxi = i
+                        maxj = j
+                        maxk = k
+                        print(maxa,maxi, maxj, maxk)
+
+    return maxa,maxi, maxj, maxk
 
 '''
 
