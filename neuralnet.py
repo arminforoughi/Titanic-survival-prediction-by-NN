@@ -641,7 +641,7 @@ def find_NN_layers():
     maxi=0
     maxj = 0
     maxk = 0
-    for i in range(38, 50):
+    for i in range(20, 50):
         for j in range(0, 50):
             print(i, j)
             for k in range(0, 50):
