@@ -651,10 +651,10 @@ def find_NN_layers():
                 score = a.score(X_test,(np.array(y_test)).reshape(len(y_test),1))
 
                 if maxa < score:
-                    X_train, X_test, y_train, y_test = train_test_split(titanic_ColumnTransformer(data), y)
+                    X_train1, X_test1, y_train1, y_test1 = train_test_split(titanic_ColumnTransformer(data), y)
                     a = titanic_NN(layers_dims, 100)
-                    a.fit(X_train,(np.array(y_train)).reshape(len(y_train),1))
-                    score = a.score(X_test,(np.array(y_test)).reshape(len(y_test),1))
+                    a.fit(X_train1,(np.array(y_train1)).reshape(len(y_train1),1))
+                    score = a.score(X_test1,(np.array(y_test1)).reshape(len(y_test1),1))
                     if maxa < score:
 
                         maxa = score
